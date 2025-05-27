@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام إدارة شبكات الصرف الصحي - السعودية</title>
+    <!-- Include Leaflet CSS and JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            display: flex;
+            height: 100vh;
+            gap: 20px;
+            padding: 20px;
+        }
+        
+        .sidebar {
+            width: 350px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            overflow-y: auto;
+        }
+        
+        .map-container {
+            flex: 1;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+            position: relative;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e0e6ed;
+        }
+        
+        .header h1 {
+            color: #2d3748;
+            font-size: 22px;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        
+        .header p {
+            color: #718096;
+            font-size: 14px;
+        }
+        
+        .section {
+            margin-bottom: 25px;
+            padding: 20px;
+            background: rgba(247, 250, 252, 0.8);
+            border-radius: 15px;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .section h3 {
+            color: #2d3748;
+            margin-bottom: 15px;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #4a5568;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            background: white;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .form-group input[readonly] {
+            background: #f7fafc;
+            cursor: not-allowed;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+            color: white;
+        }
+        
+        .btn-warning {
+            background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%);
+            color: white;
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #f56565 0%, #e53e3e 100%);
+            color: white;
+        }
+        
+        .network-info {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 10px;
+            border-right: 4px solid #667eea;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .status-good {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+        
+        .status-maintenance {
+            background: #feebc8;
+            color: #744210;
+        }
+        
+        .status-critical {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+        
+        #map {
+            height: 100%;
+            width: 100%;
+            border-radius: 20px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            border: 2px solid #e2e8f0;
+        }
+        
+        .stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #718096;
+            margin-top: 5px;
+        }
+        
+        .controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 1000;
+        }
+        
+        .zoom-btn {
+            width: 40px;
+            height: 40px;
+            background: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+        
+        .zoom-btn:hover {
+            background: #f7fafc;
+            transform: scale(1.1);
+        }
+        
+        .legend {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+        }
+        
+        .legend h4 {
+            margin-bottom: 10px;
+            color: #2d3748;
+            font-size: 14px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+            font-size: 12px;
+        }
+        
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-left: 8px;
+            border: 2px solid white;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <div class="header">
+                <h1>🏗️ نظام إدارة شبكات الصرف الصحي</h1>
+                <p>المملكة العربية السعودية</p>
+            </div>
+            
+            <div class="section">
+                <h3>📊 إحصائيات عامة</h3>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-number" id="totalNetworks">12</div>
+                        <div class="stat-label">إجمالي الشبكات</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="activeNetworks">9</div>
+                        <div class="stat-label">شبكات نشطة</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h3>🔍 تصفية الشبكات</h3>
+                <div class="form-group">
+                    <label>المنطقة</label>
+                    <select id="regionFilter">
+                        <option value="">جميع المناطق</option>
+                        <option value="riyadh">الرياض</option>
+                        <option value="jeddah">جدة</option>
+                        <option value="dammam">الدمام</option>
+                        <option value="mecca">مكة المكرمة</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>حالة الشبكة</label>
+                    <select id="statusFilter">
+                        <option value="">جميع الحالات</option>
+                        <option value="good">جيدة</option>
+                        <option value="maintenance">تحتاج صيانة</option>
+                        <option value="critical">حرجة</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" onclick="applyFilters()">تطبيق الفلتر</button>
+            </div>
+            
+            <div class="section">
+                <h3>➕ إضافة شبكة جديدة</h3>
+                <div class="form-group">
+                    <label>اسم الشبكة</label>
+                    <input type="text" id="networkName" placeholder="أدخل اسم الشبكة">
+                </div>
+                <div class="form-group">
+                    <label>المنطقة</label>
+                    <select id="networkRegion">
+                        <option value="riyadh">الرياض</option>
+                        <option value="jeddah">جدة</option>
+                        <option value="dammam">الدمام</option>
+                        <option value="mecca">مكة المكرمة</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>السعة (متر مكعب/يوم)</label>
+                    <input type="number" id="networkCapacity" placeholder="أدخل السعة">
+                </div>
+                <div class="form-group">
+                    <label>حالة الشبكة</label>
+                    <select id="networkStatus">
+                        <option value="good">جيدة</option>
+                        <option value="maintenance">تحتاج صيانة</option>
+                        <option value="critical">حرجة</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>إحداثيات الموقع (انقر على الخريطة لتحديد الموقع)</label>
+                    <input type="text" id="networkLat" placeholder="خط العرض" readonly>
+                    <input type="text" id="networkLng" placeholder="خط الطول" readonly style="margin-top: 10px;">
+                </div>
+                <div class="form-group">
+                    <label>ملاحظات</label>
+                    <textarea id="networkNotes" rows="3" placeholder="أدخل أي ملاحظات إضافية"></textarea>
+                </div>
+                <button class="btn btn-success" onclick="addNetwork()">إضافة الشبكة</button>
+                <button class="btn btn-warning" onclick="clearPin()" style="margin-top: 10px;">مسح الموقع</button>
+            </div>
+            
+            <div class="section" id="selectedNetworkInfo" style="display: none;">
+                <h3>📋 معلومات الشبكة المحددة</h3>
+                <div id="networkDetails"></div>
+                <div style="margin-top: 15px; display: flex; gap: 5px; flex-wrap: wrap;">
+                    <button class="btn btn-warning" onclick="editNetwork()">تعديل</button>
+                    <button class="btn btn-danger" onclick="deleteNetwork()">حذف</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="map-container">
+            <div id="map"></div>
+            <div class="controls">
+                <button class="zoom-btn" onclick="zoomIn()">+</button>
+                <button class="zoom-btn" onclick="zoomOut()">-</button>
+            </div>
+            <div class="legend">
+                <h4>📍 دليل الألوان</h4>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #48bb78;"></div>
+                    شبكة جيدة
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #ed8936;"></div>
+                    تحتاج صيانة
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #f56565;"></div>
+                    حالة حرجة
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Network data with real coordinates
+        let networks = [
+            {id: 1, name: "شبكة شمال الرياض", region: "riyadh", lat: 24.774265, lng: 46.738586, capacity: 50000, status: "good", notes: "شبكة حديثة بحالة ممتازة", population: 120000},
+            {id: 2, name: "شبكة وسط الرياض", region: "riyadh", lat: 24.713552, lng: 46.675296, capacity: 75000, status: "maintenance", notes: "تحتاج صيانة دورية", population: 200000},
+            {id: 3, name: "شبكة جنوب الرياض", region: "riyadh", lat: 24.600000, lng: 46.700000, capacity: 60000, status: "good", notes: "شبكة مستقرة", population: 150000},
+            {id: 4, name: "شبكة شمال جدة", region: "jeddah", lat: 21.616939, lng: 39.156141, capacity: 80000, status: "critical", notes: "تحتاج تدخل عاجل", population: 180000},
+            {id: 5, name: "شبكة وسط جدة", region: "jeddah", lat: 21.542381, lng: 39.197918, capacity: 90000, status: "good", notes: "تعمل بكفاءة عالية", population: 220000},
+            {id: 6, name: "شبكة الكورنيش", region: "jeddah", lat: 21.515000, lng: 39.160000, capacity: 45000, status: "maintenance", notes: "صيانة منتظمة", population: 95000},
+            {id: 7, name: "شبكة الدمام الرئيسية", region: "dammam", lat: 26.434422, lng: 50.103260, capacity: 70000, status: "good", notes: "شبكة متطورة", population: 160000},
+            {id: 8, name: "شبكة الخبر", region: "dammam", lat: 26.279000, lng: 50.208000, capacity: 55000, status: "good", notes: "تخدم المنطقة السكنية", population: 130000},
+            {id: 9, name: "شبكة الحرم المكي", region: "mecca", lat: 21.416667, lng: 39.816667, capacity: 100000, status: "maintenance", notes: "شبكة استراتيجية", population: 300000},
+            {id: 10, name: "شبكة العزيزية", region: "mecca", lat: 21.400000, lng: 39.820000, capacity: 40000, status: "good", notes: "شبكة سكنية", population: 85000},
+            {id: 11, name: "شبكة المعابدة", region: "mecca", lat: 21.390000, lng: 39.810000, capacity: 35000, status: "critical", notes: "تحتاج تطوير", population: 75000},
+            {id: 12, name: "شبكة جنوب الدمام", region: "dammam", lat: 26.400000, lng: 50.090000, capacity: 48000, status: "maintenance", notes: "قيد التطوير", population: 110000}
+        ];
+
+        let selectedNetwork = null;
+        let map;
+        let markers = [];
+        let tempMarker = null;
+
+        const statusNames = {
+            good: 'جيدة',
+            maintenance: 'تحتاج صيانة',
+            critical: 'حرجة'
+        };
+
+        const regionNames = {
+            riyadh: 'الرياض',
+            jeddah: 'جدة',
+            dammam: 'الدمام',
+            mecca: 'مكة المكرمة'
+        };
+
+        // Initialize Leaflet Map
+        document.addEventListener('DOMContentLoaded', function() {
+            map = L.map('map').setView([24.713552, 46.675296], 6); // Center on Riyadh
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                maxZoom: 18
+            }).addTo(map);
+
+            // Add click event to place a temporary pin
+            map.on('click', function(e) {
+                if (tempMarker) {
+                    map.removeLayer(tempMarker);
+                }
+                tempMarker = L.marker([e.latlng.lat, e.latlng.lng], {
+                    icon: L.divIcon({
+                        className: 'temp-marker',
+                        html: '<div style="background: #007bff; width: 12px; height: 12px; border-radius: 50%; border: 2px solid #fff;"></div>',
+                        iconSize: [12, 12]
+                    })
+                }).addTo(map);
+
+                // Update form fields with coordinates
+                document.getElementById('networkLat').value = e.latlng.lat.toFixed(6);
+                document.getElementById('networkLng').value = e.latlng.lng.toFixed(6);
+            });
+
+            displayNetworks();
+            updateStats();
+        });
+
+        // Display networks on the map
+        function displayNetworks(filteredNetworks = networks) {
+            // Clear existing markers
+            markers.forEach(marker => map.removeLayer(marker));
+            markers = [];
+
+            filteredNetworks.forEach(network => {
+                const marker = L.circleMarker([network.lat, network.lng], {
+                    radius: 10,
+                    color: '#ffffff',
+                    weight: 2,
+                    fillColor: network.status === 'good' ? '#48bb78' : network.status === 'maintenance' ? '#ed8936' : '#f56565',
+                    fillOpacity: 0.9
+                }).addTo(map);
+
+                // Add tooltip
+                marker.bindTooltip(`
+                    <div style="font-family: Arial; text-align: right; direction: rtl;">
+                        <strong>${network.name}</strong><br>
+                        المنطقة: ${regionNames[network.region]}<br>
+                        الحالة: ${statusNames[network.status]}<br>
+                        السعة: ${network.capacity.toLocaleString()} م³/يوم
+                    </div>
+                `, { direction: 'top', offset: [0, -10] });
+
+                // Add click event
+                marker.on('click', () => selectNetwork(network));
+
+                markers.push(marker);
+            });
+        }
+
+        // Select a network
+        function selectNetwork(network) {
+            selectedNetwork = network;
+            const infoDiv = document.getElementById('selectedNetworkInfo');
+            const detailsDiv = document.getElementById('networkDetails');
+
+            detailsDiv.innerHTML = `
+                <div class="network-info">
+                    <h4>${network.name}</h4>
+                    <p><strong>المنطقة:</strong> ${regionNames[network.region]}</p>
+                    <p><strong>السعة:</strong> ${network.capacity.toLocaleString()} م³/يوم</p>
+                    <p><strong>عدد السكان:</strong> ${network.population.toLocaleString()}</p>
+                    <p><strong>الحالة:</strong> <span class="status-badge status-${network.status}">${statusNames[network.status]}</span></p>
+                    <p><strong>الملاحظات:</strong> ${network.notes}</p>
+                </div>
+            `;
+
+            infoDiv.style.display = 'block';
+        }
+
+        // Apply filters
+        function applyFilters() {
+            const regionFilter = document.getElementById('regionFilter').value;
+            const statusFilter = document.getElementById('statusFilter').value;
+
+            let filteredNetworks = networks;
+
+            if (regionFilter) {
+                filteredNetworks = filteredNetworks.filter(n => n.region === regionFilter);
+            }
+
+            if (statusFilter) {
+                filteredNetworks = filteredNetworks.filter(n => n.status === statusFilter);
+            }
+
+            displayNetworks(filteredNetworks);
+            updateStats(filteredNetworks);
+        }
+
+        // Add a new network
+        function addNetwork() {
+            const name = document.getElementById('networkName').value;
+            const region = document.getElementById('networkRegion').value;
+            const capacity = parseInt(document.getElementById('networkCapacity').value);
+            const status = document.getElementById('networkStatus').value;
+            const notes = document.getElementById('networkNotes').value;
+            const lat = parseFloat(document.getElementById('networkLat').value);
+            const lng = parseFloat(document.getElementById('networkLng').value);
+
+            if (!name || !capacity || isNaN(lat) || isNaN(lng)) {
+                alert('يرجى ملء جميع الحقول المطلوبة وتحديد موقع على الخريطة');
+                return;
+            }
+
+            const newNetwork = {
+                id: networks.length + 1,
+                name: name,
+                region: region,
+                lat: lat,
+                lng: lng,
+                capacity: capacity,
+                status: status,
+                notes: notes || 'لا توجد ملاحظات',
+                population: Math.floor(capacity * 1.5 + Math.random() * 50000)
+            };
+
+            networks.push(newNetwork);
+            displayNetworks();
+            updateStats();
+
+            // Clear form and pin
+            document.getElementById('networkName').value = '';
+            document.getElementById('networkCapacity').value = '';
+            document.getElementById('networkNotes').value = '';
+            document.getElementById('networkLat').value = '';
+            document.getElementById('networkLng').value = '';
+            if (tempMarker) {
+                map.removeLayer(tempMarker);
+                tempMarker = null;
+            }
+
+            alert('تم إضافة الشبكة بنجاح!');
+        }
+
+        // Clear the temporary pin and coordinates
+        function clearPin() {
+            if (tempMarker) {
+                map.removeLayer(tempMarker);
+                tempMarker = null;
+            }
+            document.getElementById('networkLat').value = '';
+            document.getElementById('networkLng').value = '';
+        }
+
+        // Update statistics
+        function updateStats(filteredNetworks = networks) {
+            const total = filteredNetworks.length;
+            const active = filteredNetworks.filter(n => n.status === 'good').length;
+
+            document.getElementById('totalNetworks').textContent = total;
+            document.getElementById('activeNetworks').textContent = active;
+        }
+
+        // Edit a network
+        function editNetwork() {
+            if (!selectedNetwork) return;
+
+            const newName = prompt('اسم الشبكة الجديد:', selectedNetwork.name);
+            const newCapacity = prompt('السعة الجديدة:', selectedNetwork.capacity);
+            const newNotes = prompt('الملاحظات الجديدة:', selectedNetwork.notes);
+
+            if (newName) selectedNetwork.name = newName;
+            if (newCapacity && !isNaN(newCapacity)) selectedNetwork.capacity = parseInt(newCapacity);
+            if (newNotes) selectedNetwork.notes = newNotes;
+
+            displayNetworks();
+            selectNetwork(selectedNetwork);
+            alert('تم تحديث بيانات الشبكة بنجاح!');
+        }
+
+        // Delete a network
+        function deleteNetwork() {
+            if (!selectedNetwork) return;
+
+            if (confirm('هل أنت متأكد من حذف هذه الشبكة؟')) {
+                networks = networks.filter(n => n.id !== selectedNetwork.id);
+                displayNetworks();
+                updateStats();
+                document.getElementById('selectedNetworkInfo').style.display = 'none';
+                selectedNetwork = null;
+                alert('تم حذف الشبكة بنجاح!');
+            }
+        }
+
+        // Zoom controls
+        function zoomIn() {
+            map.zoomIn();
+        }
+
+        function zoomOut() {
+            map.zoomOut();
+        }
+    </script>
+</body>
+</html>
